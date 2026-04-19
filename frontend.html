@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频重制工作台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c10;
+  --surface: #12151c;
+  --surface-2: #1a1e28;
+  --surface-3: #222836;
+  --border: #2a3040;
+  --text: #e4e8f0;
+  --text-2: #8892a8;
+  --text-3: #5a6478;
+  --accent: #4f8cff;
+  --accent-glow: rgba(79,140,255,.15);
+  --green: #34d399;
+  --green-glow: rgba(52,211,153,.12);
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --red-glow: rgba(239,68,68,.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── top bar ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 32px;
+  background: rgba(10,12,16,.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar h1 {
+  font-size: 18px; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: .5px;
+}
+.topbar .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; } 50% { opacity:.4; }
+}
+
+/* ── layout ── */
+.app { display: flex; min-height: calc(100vh - 57px); }
+
+.sidebar {
+  width: 400px; min-width: 400px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+
+.main {
+  flex: 1;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── create form ── */
+.create-section {
+  padding: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.create-section h2 {
+  font-size: 14px; font-weight: 500; color: var(--text-2);
+  margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .25s;
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.upload-zone input { display: none; }
+.upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
+.upload-zone p { color: var(--text-2); font-size: 13px; }
+.upload-zone .filename {
+  color: var(--accent); font-weight: 500;
+  font-size: 14px; margin-top: 4px;
+}
+
+.preset-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-top: 16px;
+}
+.preset-card {
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+}
+.preset-card:hover { border-color: var(--text-3); }
+.preset-card.active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.preset-card .emoji { font-size: 22px; display: block; margin-bottom: 4px; }
+.preset-card .label { font-size: 13px; font-weight: 500; }
+.preset-card .desc { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+.prompt-row { margin-top: 16px; }
+.prompt-row label { font-size: 12px; color: var(--text-2); display: block; margin-bottom: 6px; }
+.prompt-row textarea {
+  width: 100%; height: 60px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  color: var(--text); font-size: 13px; font-family: inherit;
+  resize: vertical; outline: none;
+  transition: border-color .2s;
+}
+.prompt-row textarea:focus { border-color: var(--accent); }
+.prompt-row textarea::placeholder { color: var(--text-3); }
+
+.submit-btn {
+  margin-top: 16px; width: 100%; padding: 12px;
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+  letter-spacing: .5px; font-family: inherit;
+}
+.submit-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.submit-btn:active { transform: translateY(0); }
+.submit-btn:disabled {
+  opacity: .5; cursor: not-allowed; filter: none; transform: none;
+}
+
+/* ── job list ── */
+.job-list {
+  flex: 1; overflow-y: auto; padding: 12px;
+}
+.job-list-title {
+  font-size: 12px; color: var(--text-3); padding: 4px 12px 8px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.job-card {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.job-card:hover { border-color: var(--text-3); }
+.job-card.active { border-color: var(--accent); background: var(--accent-glow); }
+.job-card .row { display: flex; align-items: center; justify-content: space-between; }
+.job-card .name { font-size: 13px; font-weight: 500; }
+.job-card .tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 20px;
+  font-weight: 500;
+}
+.tag-pending { background: rgba(245,158,11,.12); color: var(--amber); }
+.tag-running { background: var(--accent-glow); color: var(--accent); }
+.tag-succeeded { background: var(--green-glow); color: var(--green); }
+.tag-failed { background: var(--red-glow); color: var(--red); }
+
+.job-card .meta {
+  font-size: 11px; color: var(--text-3); margin-top: 6px;
+  display: flex; gap: 12px;
+}
+
+/* ── main panel: detail ── */
+.detail-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px; color: var(--text-3);
+}
+.detail-empty .big-icon { font-size: 48px; opacity: .3; }
+.detail-empty p { font-size: 14px; }
+
+.detail-panel {
+  flex: 1; display: none; flex-direction: column; overflow: hidden;
+}
+.detail-panel.show { display: flex; }
+
+.detail-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.detail-header .left h2 { font-size: 16px; font-weight: 600; }
+.detail-header .left .sub { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.detail-header .actions { display: flex; gap: 8px; }
+.detail-header .actions button {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: all .2s;
+}
+.detail-header .actions button:hover { border-color: var(--accent); color: var(--accent); }
+.detail-header .actions button:disabled { opacity:.4; cursor:not-allowed; }
+.detail-header .actions .primary-btn {
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  border-color: transparent; color: #fff; font-weight: 500;
+}
+.detail-header .actions .primary-btn:hover { filter: brightness(1.1); }
+
+/* ── progress bar ── */
+.progress-section { padding: 20px 28px; }
+.step-indicator {
+  display: flex; gap: 4px; margin-bottom: 12px;
+}
+.step-dot {
+  flex: 1; height: 4px; border-radius: 2px;
+  background: var(--surface-3);
+  transition: background .4s;
+}
+.step-dot.done { background: var(--green); }
+.step-dot.active { background: var(--accent); animation: step-glow 1.5s infinite; }
+@keyframes step-glow {
+  0%,100% { opacity:1; } 50% { opacity:.5; }
+}
+.step-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-3);
+}
+.step-labels span.active { color: var(--accent); font-weight: 500; }
+.step-labels span.done { color: var(--green); }
+
+.current-step {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-2);
+  display: flex; align-items: center; gap: 8px;
+}
+.current-step .spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── log ── */
+.log-section {
+  flex: 1; overflow: hidden; display: flex; flex-direction: column;
+  padding: 0 28px 20px;
+}
+.log-section h3 {
+  font-size: 12px; color: var(--text-3); margin-bottom: 8px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.log-box {
+  flex: 1; overflow-y: auto;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px; line-height: 1.7;
+  color: var(--text-2);
+}
+.log-box .line-ok { color: var(--green); }
+.log-box .line-fail { color: var(--red); }
+.log-box .line-step { color: var(--accent); font-weight: 500; }
+
+/* ── videos panel ── */
+.videos-section {
+  padding: 0 28px 20px;
+}
+.videos-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.video-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.video-card .label-bar {
+  padding: 10px 14px;
+  font-size: 12px; font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+.video-card video {
+  width: 100%; display: block;
+  background: #000;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* responsive */
+@media (max-width: 900px) {
+  .app { flex-direction: column; }
+  .sidebar { width: 100%; min-width: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .videos-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="dot"></div>
+  <h1>视频重制工作台</h1>
+</div>
+
+<div class="app">
+  <!-- sidebar -->
+  <div class="sidebar">
+    <div class="create-section">
+      <h2>新建任务</h2>
+
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="video/*">
+        <div class="icon">📹</div>
+        <p>点击或拖拽上传视频</p>
+        <p class="filename" id="fileName"></p>
+      </div>
+
+      <div class="preset-grid" id="presetGrid">
+        <div class="preset-card active" data-preset="h2v">
+          <span class="emoji">📐</span>
+          <span class="label">横屏转竖屏</span>
+          <span class="desc">16:9 → 9:16</span>
+        </div>
+        <div class="preset-card" data-preset="style_transfer">
+          <span class="emoji">🎨</span>
+          <span class="label">AI 风格转绘</span>
+          <span class="desc">保持内容换风格</span>
+        </div>
+        <div class="preset-card" data-preset="character_swap">
+          <span class="emoji">🎭</span>
+          <span class="label">换人换脸</span>
+          <span class="desc">替换角色形象</span>
+        </div>
+        <div class="preset-card" data-preset="viral_replica">
+          <span class="emoji">🔥</span>
+          <span class="label">爆款复刻</span>
+          <span class="desc">复刻热门视频</span>
+        </div>
+      </div>
+
+      <div class="prompt-row">
+        <label>附加提示词（可选）</label>
+        <textarea id="promptInput" placeholder="例如：保持画面主体居中，背景模糊处理..."></textarea>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" disabled onclick="submitJob()">
+        开始处理
+      </button>
+    </div>
+
+    <div class="job-list" id="jobList">
+      <div class="job-list-title">任务列表</div>
+    </div>
+  </div>
+
+  <!-- main -->
+  <div class="main">
+    <div class="detail-empty" id="detailEmpty">
+      <div class="big-icon">🎬</div>
+      <p>上传视频并选择模式开始处理</p>
+    </div>
+
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-header">
+        <div class="left">
+          <h2 id="detailTitle">—</h2>
+          <div class="sub" id="detailSub">—</div>
+        </div>
+        <div class="actions">
+          <button id="btnReport" disabled onclick="openReport()">📊 对比报告</button>
+          <button id="btnDownload" class="primary-btn" disabled onclick="downloadFinal()">⬇ 下载成片</button>
+        </div>
+      </div>
+
+      <div class="progress-section">
+        <div class="step-indicator" id="stepIndicator">
+          <div class="step-dot" data-step="0"></div>
+          <div class="step-dot" data-step="1"></div>
+          <div class="step-dot" data-step="2"></div>
+          <div class="step-dot" data-step="3"></div>
+          <div class="step-dot" data-step="4"></div>
+        </div>
+        <div class="step-labels">
+          <span data-step="0">分割</span>
+          <span data-step="1">注册</span>
+          <span data-step="2">重制</span>
+          <span data-step="3">合并</span>
+          <span data-step="4">报告</span>
+        </div>
+        <div class="current-step" id="currentStep" style="display:none">
+          <div class="spinner"></div>
+          <span id="stepText">处理中...</span>
+        </div>
+      </div>
+
+      <div class="videos-section" id="videosSection" style="display:none">
+        <div class="videos-grid">
+          <div class="video-card">
+            <div class="label-bar">🎬 源视频</div>
+            <video id="sourceVideo" controls></video>
+          </div>
+          <div class="video-card">
+            <div class="label-bar">✨ 成片</div>
+            <video id="finalVideo" controls></video>
+          </div>
+        </div>
+      </div>
+
+      <div class="log-section">
+        <h3>处理日志</h3>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedPreset = 'h2v';
+let selectedFile = null;
+let activeJobId = null;
+let pollTimer = null;
+
+// ── file upload ──
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const submitBtn = document.getElementById('submitBtn');
+
+fileInput.addEventListener('change', e => {
+  selectedFile = e.target.files[0];
+  if (selectedFile) {
+    fileName.textContent = selectedFile.name;
+    checkReady();
+  }
+});
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) {
+    selectedFile = f;
+    fileInput.files = e.dataTransfer.files;
+    fileName.textContent = f.name;
+    checkReady();
+  }
+});
+
+// ── preset selection ──
+document.querySelectorAll('.preset-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selectedPreset = card.dataset.preset;
+  });
+});
+
+function checkReady() {
+  submitBtn.disabled = !selectedFile;
+}
+
+// ── submit ──
+async function submitJob() {
+  if (!selectedFile) return;
+  submitBtn.disabled = true;
+  submitBtn.textContent = '上传中...';
+
+  const fd = new FormData();
+  fd.append('video', selectedFile);
+  fd.append('preset', selectedPreset);
+  fd.append('prompt', document.getElementById('promptInput').value);
+
+  try {
+    const res = await fetch('/api/jobs', { method: 'POST', body: fd });
+    const data = await res.json();
+    activeJobId = data.job_id;
+    selectedFile = null;
+    fileInput.value = '';
+    fileName.textContent = '';
+    document.getElementById('promptInput').value = '';
+    submitBtn.textContent = '开始处理';
+    checkReady();
+    loadJobs();
+    showDetail(data.job_id);
+  } catch (e) {
+    alert('提交失败: ' + e.message);
+    submitBtn.disabled = false;
+    submitBtn.textContent = '开始处理';
+  }
+}
+
+// ── job list ──
+async function loadJobs() {
+  try {
+    const res = await fetch('/api/jobs');
+    const jobs = await res.json();
+    renderJobList(jobs);
+  } catch(e) {}
+}
+
+function renderJobList(jobs) {
+  const container = document.getElementById('jobList');
+  const titleEl = '<div class="job-list-title">任务列表</div>';
+  if (!jobs.length) {
+    container.innerHTML = titleEl + '<p style="padding:12px;color:var(--text-3);font-size:13px;text-align:center">暂无任务</p>';
+    return;
+  }
+  const statusLabel = { pending:'等待中', running:'处理中', succeeded:'已完成', failed:'失败' };
+  container.innerHTML = titleEl + jobs.map(j => `
+    <div class="job-card ${j.job_id===activeJobId?'active':''}" onclick="showDetail('${j.job_id}')">
+      <div class="row">
+        <span class="name">${j.source_video || '—'}</span>
+        <span class="tag tag-${j.status}">${statusLabel[j.status]||j.status}</span>
+      </div>
+      <div class="meta">
+        <span>${j.preset_label}</span>
+        ${j.progress ? '<span>进度 '+j.progress+'</span>' : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── detail ──
+async function showDetail(jobId) {
+  activeJobId = jobId;
+  document.getElementById('detailEmpty').style.display = 'none';
+  document.getElementById('detailPanel').classList.add('show');
+  document.querySelectorAll('.job-card').forEach(c => {
+    c.classList.toggle('active', c.querySelector('.name')?.closest('.job-card')?.onclick?.toString().includes(jobId));
+  });
+  loadJobs();
+  pollDetail();
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollDetail, 3000);
+}
+
+const STEP_MAP = {
+  '分割视频 + 上传 TOS': 0,
+  '注册素材资产（防审核拦截）': 1,
+  '注册失败片段为素材资产': 1,
+  'Seedance 2.0 重制': 2,
+  '重试失败片段': 2,
+  '合并成片': 3,
+  '生成对比报告': 4,
+  '完成': 5,
+};
+
+async function pollDetail() {
+  if (!activeJobId) return;
+  try {
+    const res = await fetch(`/api/jobs/${activeJobId}`);
+    const j = await res.json();
+
+    document.getElementById('detailTitle').textContent = j.source_video;
+    const presetLabels = {h2v:'横屏转竖屏', style_transfer:'AI风格转绘', character_swap:'换人换脸', viral_replica:'爆款复刻'};
+    document.getElementById('detailSub').textContent =
+      `${presetLabels[j.preset]||j.preset}　·　${j.progress||'等待中'}`;
+
+    // step indicator
+    const stepIdx = STEP_MAP[j.step] ?? -1;
+    document.querySelectorAll('.step-dot').forEach(d => {
+      const si = +d.dataset.step;
+      d.className = 'step-dot' + (si < stepIdx ? ' done' : si === stepIdx && j.status==='running' ? ' active' : '');
+    });
+    document.querySelectorAll('.step-labels span').forEach(s => {
+      const si = +s.dataset.step;
+      s.className = si < stepIdx ? 'done' : si === stepIdx && j.status==='running' ? 'active' : '';
+    });
+
+    const currentStep = document.getElementById('currentStep');
+    if (j.status === 'running') {
+      currentStep.style.display = 'flex';
+      document.getElementById('stepText').textContent = j.step + (j.progress ? ` (${j.progress})` : '');
+    } else {
+      currentStep.style.display = 'none';
+    }
+
+    // buttons
+    document.getElementById('btnDownload').disabled = !j.has_final;
+    document.getElementById('btnReport').disabled = !j.has_report;
+
+    // videos
+    if (j.has_final) {
+      document.getElementById('videosSection').style.display = '';
+      const sv = document.getElementById('sourceVideo');
+      const fv = document.getElementById('finalVideo');
+      if (!sv.src || !sv.src.includes(activeJobId)) sv.src = `/api/jobs/${activeJobId}/source`;
+      if (!fv.src || !fv.src.includes(activeJobId)) fv.src = `/api/jobs/${activeJobId}/final`;
+    }
+
+    // log
+    const logBox = document.getElementById('logBox');
+    if (j.log && j.log.length) {
+      logBox.innerHTML = j.log.map(l => {
+        let cls = '';
+        if (l.includes('[OK]') || l.includes('✓')) cls = 'line-ok';
+        else if (l.includes('[FAIL]') || l.includes('✗') || l.includes('失败')) cls = 'line-fail';
+        else if (l.startsWith('▶') || l.startsWith('=')) cls = 'line-step';
+        return `<div class="${cls}">${escHtml(l)}</div>`;
+      }).join('');
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // stop polling when done
+    if (j.status === 'succeeded' || j.status === 'failed') {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      loadJobs();
+    }
+
+  } catch(e) {}
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function downloadFinal() {
+  if (activeJobId) window.open(`/api/jobs/${activeJobId}/final`, '_blank');
+}
+function openReport() {
+  if (activeJobId) window.open(`/api/jobs/${activeJobId}/report`, '_blank');
+}
+
+// initial load
+loadJobs();
+</script>
+</body>
+</html>

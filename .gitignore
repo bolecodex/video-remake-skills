@@ -1,0 +1,21 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+.DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+
+# job outputs
+job_*/
+jobs/
+uploads/
+
+# video assets
+video/
+docs/
