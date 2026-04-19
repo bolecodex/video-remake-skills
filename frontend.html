@@ -25,304 +25,282 @@
   --radius: 12px;
   --radius-sm: 8px;
 }
-
 * { margin:0; padding:0; box-sizing:border-box; }
-
 body {
   font-family: 'Noto Sans SC', -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  overflow-x: hidden;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; overflow-x: hidden;
 }
 
 /* ── top bar ── */
 .topbar {
-  position: sticky; top: 0; z-index: 100;
-  display: flex; align-items: center; gap: 16px;
-  padding: 16px 32px;
+  position: sticky; top:0; z-index:100;
+  display:flex; align-items:center; gap:16px;
+  padding:0 32px; height:56px;
   background: rgba(10,12,16,.85);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
 }
-.topbar h1 {
-  font-size: 18px; font-weight: 700;
+.topbar .logo {
+  font-size:18px; font-weight:700;
   background: linear-gradient(135deg, var(--accent), #a78bfa);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  letter-spacing: .5px;
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  letter-spacing:.5px; white-space:nowrap;
 }
 .topbar .dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 8px var(--green);
+  width:8px; height:8px; border-radius:50%;
+  background:var(--green); box-shadow:0 0 8px var(--green);
   animation: pulse 2s infinite;
 }
-@keyframes pulse {
-  0%,100% { opacity:1; } 50% { opacity:.4; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.tabs { display:flex; gap:4px; margin-left:24px; }
+.tab-btn {
+  padding:8px 20px; border-radius:8px 8px 0 0;
+  border:none; background:transparent;
+  color:var(--text-3); font-size:13px; font-weight:500;
+  cursor:pointer; transition:all .2s; font-family:inherit;
+  border-bottom:2px solid transparent;
 }
+.tab-btn:hover { color:var(--text-2); }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); background:var(--accent-glow); }
 
-/* ── layout ── */
-.app { display: flex; min-height: calc(100vh - 57px); }
+/* ── tab panes ── */
+.tab-pane { display:none; min-height:calc(100vh - 56px); }
+.tab-pane.active { display:block; }
 
-.sidebar {
-  width: 400px; min-width: 400px;
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  background: var(--surface);
-}
-
-.main {
-  flex: 1;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-
-/* ── create form ── */
-.create-section {
-  padding: 24px;
-  border-bottom: 1px solid var(--border);
-}
-.create-section h2 {
-  font-size: 14px; font-weight: 500; color: var(--text-2);
-  margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;
-}
-
+/* ── shared ── */
 .upload-zone {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 28px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .25s;
-  position: relative;
-  overflow: hidden;
+  border:2px dashed var(--border); border-radius:var(--radius);
+  padding:28px; text-align:center; cursor:pointer;
+  transition:all .25s; position:relative; overflow:hidden;
 }
-.upload-zone:hover, .upload-zone.drag-over {
-  border-color: var(--accent);
-  background: var(--accent-glow);
+.upload-zone:hover, .upload-zone.drag-over { border-color:var(--accent); background:var(--accent-glow); }
+.upload-zone input { display:none; }
+.upload-zone .icon { font-size:32px; margin-bottom:8px; }
+.upload-zone p { color:var(--text-2); font-size:13px; }
+.upload-zone .filename { color:var(--accent); font-weight:500; font-size:14px; margin-top:4px; }
+.btn {
+  padding:10px 20px; border-radius:var(--radius-sm); border:none;
+  background:linear-gradient(135deg,var(--accent),#6366f1);
+  color:#fff; font-size:14px; font-weight:600;
+  cursor:pointer; transition:all .2s; font-family:inherit;
 }
-.upload-zone input { display: none; }
-.upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
-.upload-zone p { color: var(--text-2); font-size: 13px; }
-.upload-zone .filename {
-  color: var(--accent); font-weight: 500;
-  font-size: 14px; margin-top: 4px;
+.btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.btn:disabled { opacity:.5; cursor:not-allowed; filter:none; transform:none; }
+.btn-outline {
+  background:var(--surface-2); border:1px solid var(--border); color:var(--text);
 }
+.btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+.tag { font-size:11px; padding:2px 8px; border-radius:20px; font-weight:500; }
+.tag-pending { background:rgba(245,158,11,.12); color:var(--amber); }
+.tag-running { background:var(--accent-glow); color:var(--accent); }
+.tag-succeeded { background:var(--green-glow); color:var(--green); }
+.tag-failed { background:var(--red-glow); color:var(--red); }
 
-.preset-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 8px; margin-top: 16px;
+/* ── Tab 1: Test Compare ── */
+.test-page { padding:24px 32px; }
+.test-page h2 { font-size:20px; margin-bottom:16px; }
+.test-upload-row { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:24px; }
+.test-upload-row .upload-zone { flex:1; min-width:200px; }
+.test-upload-row .btn { white-space:nowrap; height:fit-content; }
+.presets-check { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.preset-check-item {
+  display:flex; align-items:center; gap:8px;
+  padding:10px 16px; background:var(--surface-2);
+  border:1.5px solid var(--border); border-radius:var(--radius-sm);
+  cursor:pointer; transition:all .2s; user-select:none;
 }
+.preset-check-item:hover { border-color:var(--text-3); }
+.preset-check-item.checked { border-color:var(--accent); background:var(--accent-glow); }
+.preset-check-item input { accent-color:var(--accent); }
+.preset-check-item .emoji { font-size:20px; }
+.preset-check-item .info .label { font-size:13px; font-weight:500; }
+.preset-check-item .info .desc { font-size:11px; color:var(--text-3); }
+.prompt-inputs { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.prompt-inputs .field label { font-size:12px; color:var(--text-2); display:block; margin-bottom:4px; }
+.prompt-inputs .field input {
+  width:100%; padding:8px 12px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--text); font-size:13px; font-family:inherit; outline:none;
+}
+.prompt-inputs .field input:focus { border-color:var(--accent); }
+
+.compare-grid {
+  display:grid; grid-template-columns:1fr repeat(4,1fr);
+  gap:12px; margin-top:24px;
+}
+.compare-col { min-width:0; }
+.compare-col .col-header {
+  padding:10px 12px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+  font-size:13px; font-weight:500; text-align:center;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.compare-col video {
+  width:100%; display:block; background:#000;
+  border:1px solid var(--border); border-top:none;
+  border-radius:0 0 var(--radius-sm) var(--radius-sm);
+}
+.compare-col .status-bar {
+  padding:8px 12px; background:var(--surface-2);
+  border:1px solid var(--border); border-top:none;
+  font-size:12px; color:var(--text-2); text-align:center;
+}
+.compare-col .score-row {
+  padding:8px 12px; background:var(--surface-2);
+  border:1px solid var(--border); border-top:none;
+  border-radius:0 0 var(--radius-sm) var(--radius-sm);
+  display:flex; align-items:center; justify-content:center; gap:4px;
+}
+.star { font-size:20px; cursor:pointer; color:var(--text-3); transition:color .15s; }
+.star:hover, .star.active { color:var(--amber); }
+
+/* ── Tab 2: Gallery ── */
+.gallery-page { padding:24px 32px; }
+.gallery-page h2 { font-size:20px; margin-bottom:16px; }
+.gallery-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;
+}
+.gallery-card {
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+  cursor:pointer; transition:all .2s;
+}
+.gallery-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+.gallery-card video { width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; }
+.gallery-card .card-info { padding:12px 14px; }
+.gallery-card .card-info .row { display:flex; justify-content:space-between; align-items:center; }
+.gallery-card .card-info .name { font-size:13px; font-weight:500; }
+.gallery-card .card-info .meta { font-size:11px; color:var(--text-3); margin-top:4px; }
+
+.demo-overlay {
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.92); backdrop-filter:blur(10px);
+  flex-direction:column; align-items:center; justify-content:center;
+}
+.demo-overlay.show { display:flex; }
+.demo-close {
+  position:absolute; top:16px; right:24px;
+  font-size:28px; color:var(--text-2); cursor:pointer;
+  background:none; border:none; font-family:inherit;
+}
+.demo-close:hover { color:var(--text); }
+.demo-title { font-size:16px; color:var(--text-2); margin-bottom:16px; }
+.demo-videos { display:flex; gap:24px; max-width:90vw; }
+.demo-videos .demo-side { flex:1; text-align:center; }
+.demo-videos .demo-side video { width:100%; max-height:70vh; border-radius:var(--radius); border:1px solid var(--border); }
+.demo-videos .demo-side .label { font-size:13px; color:var(--text-2); margin-top:8px; }
+
+/* ── Tab 3: Workbench (classic) ── */
+.workbench { display:flex; min-height:calc(100vh - 56px); }
+.sidebar {
+  width:400px; min-width:400px;
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  background:var(--surface);
+}
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.create-section { padding:24px; border-bottom:1px solid var(--border); }
+.create-section h2 { font-size:14px; font-weight:500; color:var(--text-2); margin-bottom:16px; text-transform:uppercase; letter-spacing:1px; }
+.preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
 .preset-card {
-  padding: 12px 14px;
-  background: var(--surface-2);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all .2s;
-  text-align: center;
+  padding:12px 14px; background:var(--surface-2);
+  border:1.5px solid var(--border); border-radius:var(--radius-sm);
+  cursor:pointer; transition:all .2s; text-align:center;
 }
-.preset-card:hover { border-color: var(--text-3); }
-.preset-card.active {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-}
-.preset-card .emoji { font-size: 22px; display: block; margin-bottom: 4px; }
-.preset-card .label { font-size: 13px; font-weight: 500; }
-.preset-card .desc { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-
-.prompt-row { margin-top: 16px; }
-.prompt-row label { font-size: 12px; color: var(--text-2); display: block; margin-bottom: 6px; }
+.preset-card:hover { border-color:var(--text-3); }
+.preset-card.active { border-color:var(--accent); background:var(--accent-glow); }
+.preset-card .emoji { font-size:22px; display:block; margin-bottom:4px; }
+.preset-card .label { font-size:13px; font-weight:500; }
+.preset-card .desc { font-size:11px; color:var(--text-3); margin-top:2px; }
+.prompt-row { margin-top:16px; }
+.prompt-row label { font-size:12px; color:var(--text-2); display:block; margin-bottom:6px; }
 .prompt-row textarea {
-  width: 100%; height: 60px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 10px 12px;
-  color: var(--text); font-size: 13px; font-family: inherit;
-  resize: vertical; outline: none;
-  transition: border-color .2s;
+  width:100%; height:60px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:10px 12px; color:var(--text); font-size:13px; font-family:inherit;
+  resize:vertical; outline:none; transition:border-color .2s;
 }
-.prompt-row textarea:focus { border-color: var(--accent); }
-.prompt-row textarea::placeholder { color: var(--text-3); }
-
+.prompt-row textarea:focus { border-color:var(--accent); }
+.prompt-row textarea::placeholder { color:var(--text-3); }
 .submit-btn {
-  margin-top: 16px; width: 100%; padding: 12px;
-  background: linear-gradient(135deg, var(--accent), #6366f1);
-  border: none; border-radius: var(--radius-sm);
-  color: #fff; font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: all .2s;
-  letter-spacing: .5px; font-family: inherit;
+  margin-top:16px; width:100%; padding:12px;
+  background:linear-gradient(135deg,var(--accent),#6366f1);
+  border:none; border-radius:var(--radius-sm);
+  color:#fff; font-size:14px; font-weight:600;
+  cursor:pointer; transition:all .2s; letter-spacing:.5px; font-family:inherit;
 }
-.submit-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.submit-btn:active { transform: translateY(0); }
-.submit-btn:disabled {
-  opacity: .5; cursor: not-allowed; filter: none; transform: none;
-}
-
-/* ── job list ── */
-.job-list {
-  flex: 1; overflow-y: auto; padding: 12px;
-}
-.job-list-title {
-  font-size: 12px; color: var(--text-3); padding: 4px 12px 8px;
-  text-transform: uppercase; letter-spacing: 1px;
-}
+.submit-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+.submit-btn:disabled { opacity:.5; cursor:not-allowed; filter:none; transform:none; }
+.job-list { flex:1; overflow-y:auto; padding:12px; }
+.job-list-title { font-size:12px; color:var(--text-3); padding:4px 12px 8px; text-transform:uppercase; letter-spacing:1px; }
 .job-card {
-  padding: 14px 16px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: all .2s;
+  padding:14px 16px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  margin-bottom:8px; cursor:pointer; transition:all .2s;
 }
-.job-card:hover { border-color: var(--text-3); }
-.job-card.active { border-color: var(--accent); background: var(--accent-glow); }
-.job-card .row { display: flex; align-items: center; justify-content: space-between; }
-.job-card .name { font-size: 13px; font-weight: 500; }
-.job-card .tag {
-  font-size: 11px; padding: 2px 8px; border-radius: 20px;
-  font-weight: 500;
-}
-.tag-pending { background: rgba(245,158,11,.12); color: var(--amber); }
-.tag-running { background: var(--accent-glow); color: var(--accent); }
-.tag-succeeded { background: var(--green-glow); color: var(--green); }
-.tag-failed { background: var(--red-glow); color: var(--red); }
-
-.job-card .meta {
-  font-size: 11px; color: var(--text-3); margin-top: 6px;
-  display: flex; gap: 12px;
-}
-
-/* ── main panel: detail ── */
-.detail-empty {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 12px; color: var(--text-3);
-}
-.detail-empty .big-icon { font-size: 48px; opacity: .3; }
-.detail-empty p { font-size: 14px; }
-
-.detail-panel {
-  flex: 1; display: none; flex-direction: column; overflow: hidden;
-}
-.detail-panel.show { display: flex; }
-
-.detail-header {
-  padding: 20px 28px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.detail-header .left h2 { font-size: 16px; font-weight: 600; }
-.detail-header .left .sub { font-size: 12px; color: var(--text-2); margin-top: 4px; }
-.detail-header .actions { display: flex; gap: 8px; }
+.job-card:hover { border-color:var(--text-3); }
+.job-card.active { border-color:var(--accent); background:var(--accent-glow); }
+.job-card .row { display:flex; align-items:center; justify-content:space-between; }
+.job-card .name { font-size:13px; font-weight:500; }
+.job-card .meta { font-size:11px; color:var(--text-3); margin-top:6px; display:flex; gap:12px; }
+.detail-empty { flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; color:var(--text-3); }
+.detail-empty .big-icon { font-size:48px; opacity:.3; }
+.detail-panel { flex:1; display:none; flex-direction:column; overflow:hidden; }
+.detail-panel.show { display:flex; }
+.detail-header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.detail-header .left h2 { font-size:16px; font-weight:600; }
+.detail-header .left .sub { font-size:12px; color:var(--text-2); margin-top:4px; }
+.detail-header .actions { display:flex; gap:8px; }
 .detail-header .actions button {
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 13px; font-family: inherit;
-  cursor: pointer; transition: all .2s;
+  padding:8px 16px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); background:var(--surface-2);
+  color:var(--text); font-size:13px; font-family:inherit;
+  cursor:pointer; transition:all .2s;
 }
-.detail-header .actions button:hover { border-color: var(--accent); color: var(--accent); }
+.detail-header .actions button:hover { border-color:var(--accent); color:var(--accent); }
 .detail-header .actions button:disabled { opacity:.4; cursor:not-allowed; }
 .detail-header .actions .primary-btn {
-  background: linear-gradient(135deg, var(--accent), #6366f1);
-  border-color: transparent; color: #fff; font-weight: 500;
+  background:linear-gradient(135deg,var(--accent),#6366f1);
+  border-color:transparent; color:#fff; font-weight:500;
 }
-.detail-header .actions .primary-btn:hover { filter: brightness(1.1); }
+.progress-section { padding:20px 28px; }
+.step-indicator { display:flex; gap:4px; margin-bottom:12px; }
+.step-dot { flex:1; height:4px; border-radius:2px; background:var(--surface-3); transition:background .4s; }
+.step-dot.done { background:var(--green); }
+.step-dot.active { background:var(--accent); animation:step-glow 1.5s infinite; }
+@keyframes step-glow { 0%,100%{opacity:1} 50%{opacity:.5} }
+.step-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--text-3); }
+.step-labels span.active { color:var(--accent); font-weight:500; }
+.step-labels span.done { color:var(--green); }
+.current-step { margin-top:12px; padding:10px 14px; background:var(--surface-2); border-radius:var(--radius-sm); font-size:13px; color:var(--text-2); display:flex; align-items:center; gap:8px; }
+.current-step .spinner { width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.log-section { flex:1; overflow:hidden; display:flex; flex-direction:column; padding:0 28px 20px; }
+.log-section h3 { font-size:12px; color:var(--text-3); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+.log-box { flex:1; overflow-y:auto; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; font-family:'SF Mono','Fira Code',monospace; font-size:12px; line-height:1.7; color:var(--text-2); }
+.log-box .line-ok { color:var(--green); }
+.log-box .line-fail { color:var(--red); }
+.log-box .line-step { color:var(--accent); font-weight:500; }
+.videos-section { padding:0 28px 20px; }
+.videos-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.video-card { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.video-card .label-bar { padding:10px 14px; font-size:12px; font-weight:500; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; }
+.video-card video { width:100%; display:block; background:#000; }
 
-/* ── progress bar ── */
-.progress-section { padding: 20px 28px; }
-.step-indicator {
-  display: flex; gap: 4px; margin-bottom: 12px;
-}
-.step-dot {
-  flex: 1; height: 4px; border-radius: 2px;
-  background: var(--surface-3);
-  transition: background .4s;
-}
-.step-dot.done { background: var(--green); }
-.step-dot.active { background: var(--accent); animation: step-glow 1.5s infinite; }
-@keyframes step-glow {
-  0%,100% { opacity:1; } 50% { opacity:.5; }
-}
-.step-labels {
-  display: flex; justify-content: space-between;
-  font-size: 11px; color: var(--text-3);
-}
-.step-labels span.active { color: var(--accent); font-weight: 500; }
-.step-labels span.done { color: var(--green); }
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text-3); }
 
-.current-step {
-  margin-top: 12px; padding: 10px 14px;
-  background: var(--surface-2); border-radius: var(--radius-sm);
-  font-size: 13px; color: var(--text-2);
-  display: flex; align-items: center; gap: 8px;
-}
-.current-step .spinner {
-  width: 14px; height: 14px;
-  border: 2px solid var(--border); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── log ── */
-.log-section {
-  flex: 1; overflow: hidden; display: flex; flex-direction: column;
-  padding: 0 28px 20px;
-}
-.log-section h3 {
-  font-size: 12px; color: var(--text-3); margin-bottom: 8px;
-  text-transform: uppercase; letter-spacing: 1px;
-}
-.log-box {
-  flex: 1; overflow-y: auto;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 12px 14px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px; line-height: 1.7;
-  color: var(--text-2);
-}
-.log-box .line-ok { color: var(--green); }
-.log-box .line-fail { color: var(--red); }
-.log-box .line-step { color: var(--accent); font-weight: 500; }
-
-/* ── videos panel ── */
-.videos-section {
-  padding: 0 28px 20px;
-}
-.videos-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.video-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.video-card .label-bar {
-  padding: 10px 14px;
-  font-size: 12px; font-weight: 500;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 6px;
-}
-.video-card video {
-  width: 100%; display: block;
-  background: #000;
-}
-
-/* scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
-
-/* responsive */
-@media (max-width: 900px) {
-  .app { flex-direction: column; }
-  .sidebar { width: 100%; min-width: auto; border-right: none; border-bottom: 1px solid var(--border); }
-  .videos-grid { grid-template-columns: 1fr; }
+@media (max-width:900px) {
+  .workbench { flex-direction:column; }
+  .sidebar { width:100%; min-width:auto; border-right:none; border-bottom:1px solid var(--border); }
+  .videos-grid { grid-template-columns:1fr; }
+  .compare-grid { grid-template-columns:1fr 1fr; }
+  .prompt-inputs { grid-template-columns:1fr; }
+  .demo-videos { flex-direction:column; }
 }
 </style>
 </head>
@@ -330,299 +308,425 @@ body {
 
 <div class="topbar">
   <div class="dot"></div>
-  <h1>视频重制工作台</h1>
+  <span class="logo">视频重制工作台</span>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="test">对比测试</button>
+    <button class="tab-btn" data-tab="gallery">成片画廊</button>
+    <button class="tab-btn" data-tab="workbench">工作台</button>
+  </div>
 </div>
 
-<div class="app">
-  <!-- sidebar -->
-  <div class="sidebar">
-    <div class="create-section">
-      <h2>新建任务</h2>
-
-      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-        <input type="file" id="fileInput" accept="video/*">
+<!-- ═══════════════════════ Tab 1: Test Compare ═══════════════════════ -->
+<div class="tab-pane active" id="pane-test">
+  <div class="test-page">
+    <h2>预设对比测试</h2>
+    <div class="test-upload-row">
+      <div class="upload-zone" id="testUploadZone" onclick="document.getElementById('testFileInput').click()">
+        <input type="file" id="testFileInput" accept="video/*">
         <div class="icon">📹</div>
         <p>点击或拖拽上传视频</p>
-        <p class="filename" id="fileName"></p>
+        <p class="filename" id="testFileName"></p>
       </div>
-
-      <div class="preset-grid" id="presetGrid">
-        <div class="preset-card active" data-preset="h2v">
-          <span class="emoji">📐</span>
-          <span class="label">横屏转竖屏</span>
-          <span class="desc">16:9 → 9:16</span>
-        </div>
-        <div class="preset-card" data-preset="style_transfer">
-          <span class="emoji">🎨</span>
-          <span class="label">AI 风格转绘</span>
-          <span class="desc">保持内容换风格</span>
-        </div>
-        <div class="preset-card" data-preset="character_swap">
-          <span class="emoji">🎭</span>
-          <span class="label">换人换脸</span>
-          <span class="desc">替换角色形象</span>
-        </div>
-        <div class="preset-card" data-preset="viral_replica">
-          <span class="emoji">🔥</span>
-          <span class="label">爆款复刻</span>
-          <span class="desc">复刻热门视频</span>
-        </div>
-      </div>
-
-      <div class="prompt-row">
-        <label>附加提示词（可选）</label>
-        <textarea id="promptInput" placeholder="例如：保持画面主体居中，背景模糊处理..."></textarea>
-      </div>
-
-      <button class="submit-btn" id="submitBtn" disabled onclick="submitJob()">
-        开始处理
-      </button>
+      <button class="btn" id="testStartBtn" disabled onclick="startBatchTest()">开始对比测试</button>
     </div>
 
-    <div class="job-list" id="jobList">
-      <div class="job-list-title">任务列表</div>
-    </div>
+    <div class="presets-check" id="presetsCheck"></div>
+    <div class="prompt-inputs" id="promptInputs"></div>
+
+    <div class="compare-grid" id="compareGrid" style="display:none"></div>
   </div>
+</div>
 
-  <!-- main -->
-  <div class="main">
-    <div class="detail-empty" id="detailEmpty">
-      <div class="big-icon">🎬</div>
-      <p>上传视频并选择模式开始处理</p>
+<!-- ═══════════════════════ Tab 2: Gallery ═══════════════════════ -->
+<div class="tab-pane" id="pane-gallery">
+  <div class="gallery-page">
+    <h2>成片画廊</h2>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </div>
+</div>
+
+<div class="demo-overlay" id="demoOverlay">
+  <button class="demo-close" onclick="closeDemo()">&times;</button>
+  <div class="demo-title" id="demoTitle"></div>
+  <div class="demo-videos">
+    <div class="demo-side"><video id="demoSource" controls></video><div class="label">源视频</div></div>
+    <div class="demo-side"><video id="demoFinal" controls></video><div class="label">重制成片</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ Tab 3: Workbench ═══════════════════════ -->
+<div class="tab-pane" id="pane-workbench">
+  <div class="workbench">
+    <div class="sidebar">
+      <div class="create-section">
+        <h2>新建任务</h2>
+        <div class="upload-zone" id="wbUploadZone" onclick="document.getElementById('wbFileInput').click()">
+          <input type="file" id="wbFileInput" accept="video/*">
+          <div class="icon">📹</div>
+          <p>点击或拖拽上传视频</p>
+          <p class="filename" id="wbFileName"></p>
+        </div>
+        <div class="preset-grid" id="wbPresetGrid"></div>
+        <div class="prompt-row">
+          <label>附加提示词（可选）</label>
+          <textarea id="wbPromptInput" placeholder="例如：保持画面主体居中，背景模糊处理..."></textarea>
+        </div>
+        <button class="submit-btn" id="wbSubmitBtn" disabled onclick="wbSubmitJob()">开始处理</button>
+      </div>
+      <div class="job-list" id="wbJobList"><div class="job-list-title">任务列表</div></div>
     </div>
-
-    <div class="detail-panel" id="detailPanel">
-      <div class="detail-header">
-        <div class="left">
-          <h2 id="detailTitle">—</h2>
-          <div class="sub" id="detailSub">—</div>
-        </div>
-        <div class="actions">
-          <button id="btnReport" disabled onclick="openReport()">📊 对比报告</button>
-          <button id="btnDownload" class="primary-btn" disabled onclick="downloadFinal()">⬇ 下载成片</button>
-        </div>
-      </div>
-
-      <div class="progress-section">
-        <div class="step-indicator" id="stepIndicator">
-          <div class="step-dot" data-step="0"></div>
-          <div class="step-dot" data-step="1"></div>
-          <div class="step-dot" data-step="2"></div>
-          <div class="step-dot" data-step="3"></div>
-          <div class="step-dot" data-step="4"></div>
-        </div>
-        <div class="step-labels">
-          <span data-step="0">分割</span>
-          <span data-step="1">注册</span>
-          <span data-step="2">重制</span>
-          <span data-step="3">合并</span>
-          <span data-step="4">报告</span>
-        </div>
-        <div class="current-step" id="currentStep" style="display:none">
-          <div class="spinner"></div>
-          <span id="stepText">处理中...</span>
-        </div>
-      </div>
-
-      <div class="videos-section" id="videosSection" style="display:none">
-        <div class="videos-grid">
-          <div class="video-card">
-            <div class="label-bar">🎬 源视频</div>
-            <video id="sourceVideo" controls></video>
-          </div>
-          <div class="video-card">
-            <div class="label-bar">✨ 成片</div>
-            <video id="finalVideo" controls></video>
+    <div class="main">
+      <div class="detail-empty" id="wbDetailEmpty"><div class="big-icon">🎬</div><p>上传视频并选择模式开始处理</p></div>
+      <div class="detail-panel" id="wbDetailPanel">
+        <div class="detail-header">
+          <div class="left"><h2 id="wbDetailTitle">—</h2><div class="sub" id="wbDetailSub">—</div></div>
+          <div class="actions">
+            <button id="wbBtnReport" disabled onclick="wbOpenReport()">📊 对比报告</button>
+            <button id="wbBtnDownload" class="primary-btn" disabled onclick="wbDownloadFinal()">⬇ 下载成片</button>
           </div>
         </div>
-      </div>
-
-      <div class="log-section">
-        <h3>处理日志</h3>
-        <div class="log-box" id="logBox"></div>
+        <div class="progress-section">
+          <div class="step-indicator" id="wbStepIndicator"></div>
+          <div class="step-labels" id="wbStepLabels"></div>
+          <div class="current-step" id="wbCurrentStep" style="display:none"><div class="spinner"></div><span id="wbStepText">处理中...</span></div>
+        </div>
+        <div class="videos-section" id="wbVideosSection" style="display:none">
+          <div class="videos-grid">
+            <div class="video-card"><div class="label-bar">🎬 源视频</div><video id="wbSourceVideo" controls></video></div>
+            <div class="video-card"><div class="label-bar">✨ 成片</div><video id="wbFinalVideo" controls></video></div>
+          </div>
+        </div>
+        <div class="log-section"><h3>处理日志</h3><div class="log-box" id="wbLogBox"></div></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-let selectedPreset = 'h2v';
-let selectedFile = null;
-let activeJobId = null;
-let pollTimer = null;
+/* ══════════════════════════════════════════════════
+   Shared state
+   ══════════════════════════════════════════════════ */
+let presetMeta = {};
+let pipelineSteps = [];
+let wbSelectedPreset = 'h2v';
+let wbSelectedFile = null;
+let wbActiveJobId = null;
+let wbPollTimer = null;
+let testSelectedFile = null;
+let testBatchId = null;
+let testPollTimer = null;
 
-// ── file upload ──
-const uploadZone = document.getElementById('uploadZone');
-const fileInput = document.getElementById('fileInput');
-const fileName = document.getElementById('fileName');
-const submitBtn = document.getElementById('submitBtn');
-
-fileInput.addEventListener('change', e => {
-  selectedFile = e.target.files[0];
-  if (selectedFile) {
-    fileName.textContent = selectedFile.name;
-    checkReady();
-  }
-});
-
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('video/')) {
-    selectedFile = f;
-    fileInput.files = e.dataTransfer.files;
-    fileName.textContent = f.name;
-    checkReady();
-  }
-});
-
-// ── preset selection ──
-document.querySelectorAll('.preset-card').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
-    card.classList.add('active');
-    selectedPreset = card.dataset.preset;
+/* ── Tab switching ── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'gallery') loadGallery();
+    if (btn.dataset.tab === 'workbench') wbLoadJobs();
   });
 });
 
-function checkReady() {
-  submitBtn.disabled = !selectedFile;
+/* ── Init: fetch meta ── */
+async function init() {
+  try {
+    const [pRes, sRes] = await Promise.all([fetch('/api/meta/presets'), fetch('/api/meta/steps')]);
+    presetMeta = await pRes.json();
+    pipelineSteps = await sRes.json();
+  } catch(e) {
+    presetMeta = {h2v:{label:'横屏转竖屏',icon:'📐',desc:'16:9→9:16',prompt_hint:''},style_transfer:{label:'AI风格转绘',icon:'🎨',desc:'保持内容换风格',prompt_hint:''},character_swap:{label:'换人换脸',icon:'🎭',desc:'替换角色形象',prompt_hint:''},viral_replica:{label:'爆款复刻',icon:'🔥',desc:'复刻热门视频',prompt_hint:''}};
+    pipelineSteps = [{id:'split',label:'分割'},{id:'asset',label:'注册'},{id:'remake',label:'重制'},{id:'merge',label:'合并'},{id:'verify',label:'报告'}];
+  }
+  initTestTab();
+  initWorkbench();
+  wbLoadJobs();
 }
 
-// ── submit ──
-async function submitJob() {
-  if (!selectedFile) return;
-  submitBtn.disabled = true;
-  submitBtn.textContent = '上传中...';
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ══════════════════════════════════════════════════
+   Tab 1: Test Compare
+   ══════════════════════════════════════════════════ */
+function initTestTab() {
+  const container = document.getElementById('presetsCheck');
+  const promptContainer = document.getElementById('promptInputs');
+  container.innerHTML = '';
+  promptContainer.innerHTML = '';
+  for (const [key, meta] of Object.entries(presetMeta)) {
+    container.innerHTML += `<label class="preset-check-item checked" data-preset="${key}">
+      <input type="checkbox" checked value="${key}">
+      <span class="emoji">${meta.icon}</span>
+      <div class="info"><div class="label">${meta.label}</div><div class="desc">${meta.desc}</div></div>
+    </label>`;
+    promptContainer.innerHTML += `<div class="field"><label>${meta.icon} ${meta.label} 提示词</label><input id="testPrompt_${key}" placeholder="${meta.prompt_hint || ''}"></div>`;
+  }
+  container.querySelectorAll('.preset-check-item').forEach(item => {
+    item.addEventListener('click', e => {
+      if (e.target.tagName === 'INPUT') return;
+      const cb = item.querySelector('input');
+      cb.checked = !cb.checked;
+      item.classList.toggle('checked', cb.checked);
+    });
+  });
+
+  const zone = document.getElementById('testUploadZone');
+  const input = document.getElementById('testFileInput');
+  input.addEventListener('change', e => {
+    testSelectedFile = e.target.files[0];
+    if (testSelectedFile) { document.getElementById('testFileName').textContent = testSelectedFile.name; checkTestReady(); }
+  });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('video/')) { testSelectedFile = f; input.files = e.dataTransfer.files; document.getElementById('testFileName').textContent = f.name; checkTestReady(); }
+  });
+}
+
+function checkTestReady() { document.getElementById('testStartBtn').disabled = !testSelectedFile; }
+
+async function startBatchTest() {
+  if (!testSelectedFile) return;
+  const btn = document.getElementById('testStartBtn');
+  btn.disabled = true; btn.textContent = '上传中...';
+
+  const checked = [...document.querySelectorAll('#presetsCheck input:checked')].map(c => c.value);
+  if (!checked.length) { alert('至少选择一个预设'); btn.disabled = false; btn.textContent = '开始对比测试'; return; }
+
+  const prompts = {};
+  checked.forEach(k => { const v = document.getElementById('testPrompt_' + k)?.value; if (v) prompts[k] = v; });
 
   const fd = new FormData();
-  fd.append('video', selectedFile);
-  fd.append('preset', selectedPreset);
-  fd.append('prompt', document.getElementById('promptInput').value);
+  fd.append('video', testSelectedFile);
+  fd.append('presets', checked.join(','));
+  fd.append('prompts', JSON.stringify(prompts));
 
   try {
-    const res = await fetch('/api/jobs', { method: 'POST', body: fd });
+    const res = await fetch('/api/batch-jobs', { method:'POST', body:fd });
     const data = await res.json();
-    activeJobId = data.job_id;
-    selectedFile = null;
-    fileInput.value = '';
-    fileName.textContent = '';
-    document.getElementById('promptInput').value = '';
-    submitBtn.textContent = '开始处理';
-    checkReady();
-    loadJobs();
-    showDetail(data.job_id);
-  } catch (e) {
+    testBatchId = data.batch_id;
+    btn.textContent = '开始对比测试'; checkTestReady();
+    buildCompareGrid(checked, data.job_ids);
+    pollBatch();
+    if (testPollTimer) clearInterval(testPollTimer);
+    testPollTimer = setInterval(pollBatch, 4000);
+  } catch(e) {
     alert('提交失败: ' + e.message);
-    submitBtn.disabled = false;
-    submitBtn.textContent = '开始处理';
+    btn.disabled = false; btn.textContent = '开始对比测试';
   }
 }
 
-// ── job list ──
-async function loadJobs() {
+function buildCompareGrid(presets, jobIds) {
+  const grid = document.getElementById('compareGrid');
+  grid.style.display = 'grid';
+  let html = `<div class="compare-col"><div class="col-header">🎬 源视频</div><video id="testSourceVid" controls></video><div class="status-bar">原始</div></div>`;
+  presets.forEach((p, i) => {
+    const meta = presetMeta[p] || {};
+    html += `<div class="compare-col" data-job="${jobIds[i]}" data-preset="${p}">
+      <div class="col-header">${meta.icon||''} ${meta.label||p} <span class="tag tag-pending" id="testTag_${jobIds[i]}">等待中</span></div>
+      <video id="testVid_${jobIds[i]}" controls style="display:none"></video>
+      <div class="status-bar" id="testStatus_${jobIds[i]}">等待中...</div>
+      <div class="score-row" id="testScore_${jobIds[i]}">
+        ${[1,2,3,4,5].map(n => `<span class="star" data-job="${jobIds[i]}" data-score="${n}" onclick="rateJob('${jobIds[i]}',${n})">★</span>`).join('')}
+      </div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+
+  if (testSelectedFile) {
+    const url = URL.createObjectURL(testSelectedFile);
+    document.getElementById('testSourceVid').src = url;
+  }
+}
+
+async function pollBatch() {
+  if (!testBatchId) return;
   try {
-    const res = await fetch('/api/jobs');
-    const jobs = await res.json();
-    renderJobList(jobs);
+    const res = await fetch('/api/batch-jobs/' + testBatchId);
+    const data = await res.json();
+    const statusLabels = {pending:'等待中',running:'处理中',succeeded:'已完成',failed:'失败'};
+    data.jobs.forEach(j => {
+      const tag = document.getElementById('testTag_' + j.job_id);
+      const status = document.getElementById('testStatus_' + j.job_id);
+      const vid = document.getElementById('testVid_' + j.job_id);
+      if (tag) { tag.className = 'tag tag-' + j.status; tag.textContent = statusLabels[j.status] || j.status; }
+      if (status) status.textContent = j.step || j.progress || statusLabels[j.status] || j.status;
+      if (vid && j.has_final && !vid.src.includes(j.job_id)) { vid.src = '/api/jobs/' + j.job_id + '/final'; vid.style.display = ''; }
+    });
+    if (data.status === 'completed') { if (testPollTimer) { clearInterval(testPollTimer); testPollTimer = null; } }
   } catch(e) {}
 }
 
-function renderJobList(jobs) {
-  const container = document.getElementById('jobList');
-  const titleEl = '<div class="job-list-title">任务列表</div>';
-  if (!jobs.length) {
-    container.innerHTML = titleEl + '<p style="padding:12px;color:var(--text-3);font-size:13px;text-align:center">暂无任务</p>';
-    return;
-  }
-  const statusLabel = { pending:'等待中', running:'处理中', succeeded:'已完成', failed:'失败' };
-  container.innerHTML = titleEl + jobs.map(j => `
-    <div class="job-card ${j.job_id===activeJobId?'active':''}" onclick="showDetail('${j.job_id}')">
-      <div class="row">
-        <span class="name">${j.source_video || '—'}</span>
-        <span class="tag tag-${j.status}">${statusLabel[j.status]||j.status}</span>
-      </div>
-      <div class="meta">
-        <span>${j.preset_label}</span>
-        ${j.progress ? '<span>进度 '+j.progress+'</span>' : ''}
-      </div>
-    </div>
-  `).join('');
-}
-
-// ── detail ──
-async function showDetail(jobId) {
-  activeJobId = jobId;
-  document.getElementById('detailEmpty').style.display = 'none';
-  document.getElementById('detailPanel').classList.add('show');
-  document.querySelectorAll('.job-card').forEach(c => {
-    c.classList.toggle('active', c.querySelector('.name')?.closest('.job-card')?.onclick?.toString().includes(jobId));
-  });
-  loadJobs();
-  pollDetail();
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollDetail, 3000);
-}
-
-const STEP_MAP = {
-  '分割视频 + 上传 TOS': 0,
-  '注册素材资产（防审核拦截）': 1,
-  '注册失败片段为素材资产': 1,
-  'Seedance 2.0 重制': 2,
-  '重试失败片段': 2,
-  '合并成片': 3,
-  '生成对比报告': 4,
-  '完成': 5,
-};
-
-async function pollDetail() {
-  if (!activeJobId) return;
+async function rateJob(jobId, score) {
   try {
-    const res = await fetch(`/api/jobs/${activeJobId}`);
+    await fetch('/api/jobs/' + jobId + '/score', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({score}) });
+    document.querySelectorAll(`[data-job="${jobId}"].star`).forEach(s => { s.classList.toggle('active', +s.dataset.score <= score); });
+  } catch(e) {}
+}
+
+/* ══════════════════════════════════════════════════
+   Tab 2: Gallery
+   ══════════════════════════════════════════════════ */
+async function loadGallery() {
+  try {
+    const res = await fetch('/api/gallery');
+    const items = await res.json();
+    const grid = document.getElementById('galleryGrid');
+    if (!items.length) { grid.innerHTML = '<p style="color:var(--text-3);text-align:center;padding:40px">暂无成片记录</p>'; return; }
+    grid.innerHTML = items.map(j => `
+      <div class="gallery-card" onclick="openDemo('${j.job_id}','${escHtml(j.source_video)}','${escHtml(j.preset_label)}')">
+        <video src="/api/jobs/${j.job_id}/final" muted preload="metadata"></video>
+        <div class="card-info">
+          <div class="row">
+            <span class="name">${escHtml(j.source_video)}</span>
+            <span class="tag tag-succeeded">${j.preset_label}</span>
+          </div>
+          <div class="meta">${j.score ? '★'.repeat(j.score) + ' ' : ''}${j.progress || ''}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+function openDemo(jobId, fileName, presetLabel) {
+  document.getElementById('demoOverlay').classList.add('show');
+  document.getElementById('demoTitle').textContent = `${fileName} — ${presetLabel}`;
+  document.getElementById('demoSource').src = '/api/jobs/' + jobId + '/source';
+  document.getElementById('demoFinal').src = '/api/jobs/' + jobId + '/final';
+}
+
+function closeDemo() {
+  document.getElementById('demoOverlay').classList.remove('show');
+  document.getElementById('demoSource').pause(); document.getElementById('demoSource').src = '';
+  document.getElementById('demoFinal').pause(); document.getElementById('demoFinal').src = '';
+}
+
+/* ══════════════════════════════════════════════════
+   Tab 3: Workbench (classic)
+   ══════════════════════════════════════════════════ */
+function initWorkbench() {
+  const presetGrid = document.getElementById('wbPresetGrid');
+  presetGrid.innerHTML = Object.entries(presetMeta).map(([k, m]) =>
+    `<div class="preset-card ${k === 'h2v' ? 'active' : ''}" data-preset="${k}">
+      <span class="emoji">${m.icon}</span><span class="label">${m.label}</span><span class="desc">${m.desc}</span>
+    </div>`
+  ).join('');
+  presetGrid.querySelectorAll('.preset-card').forEach(card => {
+    card.addEventListener('click', () => {
+      presetGrid.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      wbSelectedPreset = card.dataset.preset;
+    });
+  });
+
+  const stepInd = document.getElementById('wbStepIndicator');
+  const stepLbl = document.getElementById('wbStepLabels');
+  stepInd.innerHTML = pipelineSteps.map((s,i) => `<div class="step-dot" data-step="${i}"></div>`).join('');
+  stepLbl.innerHTML = pipelineSteps.map((s,i) => `<span data-step="${i}">${s.label}</span>`).join('');
+
+  const zone = document.getElementById('wbUploadZone');
+  const input = document.getElementById('wbFileInput');
+  input.addEventListener('change', e => {
+    wbSelectedFile = e.target.files[0];
+    if (wbSelectedFile) { document.getElementById('wbFileName').textContent = wbSelectedFile.name; wbCheckReady(); }
+  });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('video/')) { wbSelectedFile = f; input.files = e.dataTransfer.files; document.getElementById('wbFileName').textContent = f.name; wbCheckReady(); }
+  });
+}
+
+function wbCheckReady() { document.getElementById('wbSubmitBtn').disabled = !wbSelectedFile; }
+
+async function wbSubmitJob() {
+  if (!wbSelectedFile) return;
+  const btn = document.getElementById('wbSubmitBtn');
+  btn.disabled = true; btn.textContent = '上传中...';
+  const fd = new FormData();
+  fd.append('video', wbSelectedFile);
+  fd.append('preset', wbSelectedPreset);
+  fd.append('prompt', document.getElementById('wbPromptInput').value);
+  try {
+    const res = await fetch('/api/jobs', { method:'POST', body:fd });
+    const data = await res.json();
+    wbActiveJobId = data.job_id;
+    wbSelectedFile = null; document.getElementById('wbFileInput').value = '';
+    document.getElementById('wbFileName').textContent = '';
+    document.getElementById('wbPromptInput').value = '';
+    btn.textContent = '开始处理'; wbCheckReady();
+    wbLoadJobs(); wbShowDetail(data.job_id);
+  } catch(e) {
+    alert('提交失败: ' + e.message);
+    btn.disabled = false; btn.textContent = '开始处理';
+  }
+}
+
+async function wbLoadJobs() {
+  try {
+    const res = await fetch('/api/jobs');
+    const jobs = await res.json();
+    const container = document.getElementById('wbJobList');
+    const titleEl = '<div class="job-list-title">任务列表</div>';
+    if (!jobs.length) { container.innerHTML = titleEl + '<p style="padding:12px;color:var(--text-3);font-size:13px;text-align:center">暂无任务</p>'; return; }
+    const statusLabel = {pending:'等待中',running:'处理中',succeeded:'已完成',failed:'失败'};
+    container.innerHTML = titleEl + jobs.map(j => `
+      <div class="job-card ${j.job_id===wbActiveJobId?'active':''}" onclick="wbShowDetail('${j.job_id}')">
+        <div class="row"><span class="name">${escHtml(j.source_video||'—')}</span><span class="tag tag-${j.status}">${statusLabel[j.status]||j.status}</span></div>
+        <div class="meta"><span>${j.preset_label}</span>${j.progress?'<span>进度 '+j.progress+'</span>':''}</div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+function wbShowDetail(jobId) {
+  wbActiveJobId = jobId;
+  document.getElementById('wbDetailEmpty').style.display = 'none';
+  document.getElementById('wbDetailPanel').classList.add('show');
+  wbLoadJobs(); wbPollDetail();
+  if (wbPollTimer) clearInterval(wbPollTimer);
+  wbPollTimer = setInterval(wbPollDetail, 3000);
+}
+
+async function wbPollDetail() {
+  if (!wbActiveJobId) return;
+  try {
+    const res = await fetch('/api/jobs/' + wbActiveJobId);
     const j = await res.json();
+    document.getElementById('wbDetailTitle').textContent = j.source_video;
+    document.getElementById('wbDetailSub').textContent = `${j.preset_label}　·　${j.progress||'等待中'}`;
 
-    document.getElementById('detailTitle').textContent = j.source_video;
-    const presetLabels = {h2v:'横屏转竖屏', style_transfer:'AI风格转绘', character_swap:'换人换脸', viral_replica:'爆款复刻'};
-    document.getElementById('detailSub').textContent =
-      `${presetLabels[j.preset]||j.preset}　·　${j.progress||'等待中'}`;
-
-    // step indicator
-    const stepIdx = STEP_MAP[j.step] ?? -1;
-    document.querySelectorAll('.step-dot').forEach(d => {
+    const stepKey = j.step_key || '';
+    const stepIdx = pipelineSteps.findIndex(s => s.id === stepKey);
+    document.querySelectorAll('#wbStepIndicator .step-dot').forEach(d => {
       const si = +d.dataset.step;
       d.className = 'step-dot' + (si < stepIdx ? ' done' : si === stepIdx && j.status==='running' ? ' active' : '');
     });
-    document.querySelectorAll('.step-labels span').forEach(s => {
+    document.querySelectorAll('#wbStepLabels span').forEach(s => {
       const si = +s.dataset.step;
       s.className = si < stepIdx ? 'done' : si === stepIdx && j.status==='running' ? 'active' : '';
     });
 
-    const currentStep = document.getElementById('currentStep');
-    if (j.status === 'running') {
-      currentStep.style.display = 'flex';
-      document.getElementById('stepText').textContent = j.step + (j.progress ? ` (${j.progress})` : '');
-    } else {
-      currentStep.style.display = 'none';
-    }
+    const cs = document.getElementById('wbCurrentStep');
+    if (j.status === 'running') { cs.style.display = 'flex'; document.getElementById('wbStepText').textContent = j.step + (j.progress ? ` (${j.progress})` : ''); }
+    else { cs.style.display = 'none'; }
 
-    // buttons
-    document.getElementById('btnDownload').disabled = !j.has_final;
-    document.getElementById('btnReport').disabled = !j.has_report;
+    document.getElementById('wbBtnDownload').disabled = !j.has_final;
+    document.getElementById('wbBtnReport').disabled = !j.has_report;
 
-    // videos
     if (j.has_final) {
-      document.getElementById('videosSection').style.display = '';
-      const sv = document.getElementById('sourceVideo');
-      const fv = document.getElementById('finalVideo');
-      if (!sv.src || !sv.src.includes(activeJobId)) sv.src = `/api/jobs/${activeJobId}/source`;
-      if (!fv.src || !fv.src.includes(activeJobId)) fv.src = `/api/jobs/${activeJobId}/final`;
+      document.getElementById('wbVideosSection').style.display = '';
+      const sv = document.getElementById('wbSourceVideo');
+      const fv = document.getElementById('wbFinalVideo');
+      if (!sv.src || !sv.src.includes(wbActiveJobId)) sv.src = '/api/jobs/' + wbActiveJobId + '/source';
+      if (!fv.src || !fv.src.includes(wbActiveJobId)) fv.src = '/api/jobs/' + wbActiveJobId + '/final';
     }
 
-    // log
-    const logBox = document.getElementById('logBox');
+    const logBox = document.getElementById('wbLogBox');
     if (j.log && j.log.length) {
       logBox.innerHTML = j.log.map(l => {
         let cls = '';
@@ -634,28 +738,18 @@ async function pollDetail() {
       logBox.scrollTop = logBox.scrollHeight;
     }
 
-    // stop polling when done
     if (j.status === 'succeeded' || j.status === 'failed') {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-      loadJobs();
+      if (wbPollTimer) { clearInterval(wbPollTimer); wbPollTimer = null; }
+      wbLoadJobs();
     }
-
   } catch(e) {}
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function wbDownloadFinal() { if (wbActiveJobId) window.open('/api/jobs/' + wbActiveJobId + '/final', '_blank'); }
+function wbOpenReport() { if (wbActiveJobId) window.open('/api/jobs/' + wbActiveJobId + '/report', '_blank'); }
 
-function downloadFinal() {
-  if (activeJobId) window.open(`/api/jobs/${activeJobId}/final`, '_blank');
-}
-function openReport() {
-  if (activeJobId) window.open(`/api/jobs/${activeJobId}/report`, '_blank');
-}
-
-// initial load
-loadJobs();
+/* ── boot ── */
+init();
 </script>
 </body>
 </html>

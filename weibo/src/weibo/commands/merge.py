@@ -23,31 +23,45 @@ def register_merge(app: typer.Typer) -> None:
             False, "--keep-audio", help="从源视频提取音轨合入成片。"
         ),
     ) -> None:
-        """将所有成功重制的片段按顺序合并。"""
+        """将所有成功重制的片段按顺序合并。失败片段用源片段填补以保持时长完整。"""
         config: AppConfig = ctx.obj
         manifest = Manifest.load(manifest_path)
         job_dir = manifest_path.parent
 
-        succeeded = manifest.succeeded_segments()
-        if not succeeded:
-            typer.echo("Error: 没有成功重制的片段可合并。", err=True)
-            raise typer.Exit(1)
+        all_sorted = sorted(manifest.segments, key=lambda s: s.index)
+        video_paths: list[Path] = []
+        fallback_count = 0
 
-        succeeded.sort(key=lambda s: s.index)
-        video_paths = []
-        for seg in succeeded:
-            rp = job_dir / seg.remade_path
-            if not rp.exists():
-                typer.echo(f"Warning: 片段 {seg.index:03d} 文件缺失: {rp}", err=True)
-                continue
-            video_paths.append(rp)
+        for seg in all_sorted:
+            if seg.status == "succeeded" and seg.remade_path:
+                rp = job_dir / seg.remade_path
+                if rp.exists():
+                    video_paths.append(rp)
+                    continue
+                typer.echo(f"Warning: 片段 {seg.index:03d} 重制文件缺失: {rp}", err=True)
+
+            sp = job_dir / seg.source_path
+            if sp.exists():
+                video_paths.append(sp)
+                fallback_count += 1
+                typer.echo(
+                    f"Warning: 片段 {seg.index:03d} 使用源片段填补（{seg.status}）",
+                    err=True,
+                )
+            else:
+                typer.echo(f"Warning: 片段 {seg.index:03d} 源片段也缺失，跳过", err=True)
 
         if not video_paths:
-            typer.echo("Error: 所有重制文件均缺失。", err=True)
+            typer.echo("Error: 没有可用的片段可合并。", err=True)
             raise typer.Exit(1)
 
         total = len(manifest.segments)
         typer.echo(f"合并 {len(video_paths)}/{total} 个片段")
+        if fallback_count:
+            typer.echo(
+                f"WARNING: {fallback_count} 个片段使用源视频填补（未重制成功）",
+                err=True,
+            )
 
         out_path = output or (job_dir / "final.mp4")
         concat_videos(video_paths, out_path)

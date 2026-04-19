@@ -15,9 +15,18 @@ metadata: {}
 
 ```bash
 test -n "$WEIBO_ARK_API_KEY" || test -n "$ARK_API_KEY"
+test -n "$VOLC_ACCESSKEY" && test -n "$VOLC_SECRETKEY" && test -n "$WEIBO_TOS_BUCKET"
 which ffmpeg && which ffprobe
 weibo version
 ```
+
+TOS 配置（`.env` 中）：
+- `VOLC_ACCESSKEY` — 火山引擎 Access Key
+- `VOLC_SECRETKEY` — 火山引擎 Secret Key
+- `WEIBO_TOS_BUCKET` — TOS 桶名
+- `WEIBO_TOS_ENDPOINT` — TOS 端点（默认 `tos-cn-beijing.volces.com`）
+
+**重要**：视频参考模式**必须配置 TOS**，因为需要将分段视频上传获取公网 URL。含真人的视频可能触发安全审核，`weibo run --auto-asset`（默认开启）会自动注册 Asset 并重试。
 
 ## 一键运行
 
@@ -27,20 +36,23 @@ weibo run ./reference_video.mp4 -o ./job_viral \
   --prompt "复刻此视频的镜头语言和节奏，竖屏构图，画面饱满有冲击力"
 ```
 
-## 分步执行
+## 分步执行（含 Asset 注册）
 
 ```bash
-# 1. 分割参考视频
+# 1. 分割参考视频 + 上传 TOS
 weibo split ./reference_video.mp4 -o ./job_viral --preset viral_replica
 
-# 2. 风格复刻重制
+# 2. 注册 Asset（防真人审核拦截，推荐始终执行）
+weibo asset-register ./job_viral/manifest.json -g viral-project
+
+# 3. 风格复刻重制
 weibo remake ./job_viral/manifest.json \
   --prompt "复刻原片的运镜节奏和视觉冲击力，9:16竖屏，主体居中偏上，色彩饱满"
 
-# 3. 合并
-weibo merge ./job_viral/manifest.json -o ./final_viral.mp4
+# 4. 合并（--keep-audio 保留原声）
+weibo merge ./job_viral/manifest.json -o ./final_viral.mp4 --keep-audio
 
-# 4. 验证
+# 5. 验证
 weibo verify ./job_viral/manifest.json
 ```
 

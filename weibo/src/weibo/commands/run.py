@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from weibo.assets import AssetsClient
 from weibo.client.ark_base import ArkClient
 from weibo.client.polling import PollConfig, normalize_status, poll_task
 from weibo.client.seedance import SeedanceClient
@@ -16,6 +17,7 @@ from weibo.upload import TOSConfig, upload_file
 from weibo.utils import (
     concat_videos,
     download_file,
+    encode_image_to_data_url,
     extract_first_frame,
     get_video_duration,
     get_video_ratio,
@@ -36,7 +38,7 @@ def register_run(app: typer.Typer) -> None:
             15, "--segment-seconds", "-s", help="每段最大秒数（默认 15）。"
         ),
         preset: str = typer.Option(
-            "h2v", "--preset", "-p", help="预设模式：h2v / style_transfer / character_swap / viral_replica"
+            "h2v", "--preset", "-p", help="预设模式：h2v / v2h / style_transfer / character_swap / viral_replica"
         ),
         prompt: str = typer.Option(
             "", "--prompt", help="附加提示词。"
@@ -46,6 +48,10 @@ def register_run(app: typer.Typer) -> None:
         ),
         no_upload: bool = typer.Option(
             False, "--no-upload", help="跳过 TOS 上传，使用首帧图片参考。"
+        ),
+        auto_asset: bool = typer.Option(
+            True, "--auto-asset/--no-auto-asset",
+            help="失败片段自动注册 Asset 后重试（默认开启，需 TOS 配置）。",
         ),
     ) -> None:
         """一键执行完整流水线：分割 → 上传 → Seedance 重制 → 合并。"""
@@ -157,7 +163,6 @@ def register_run(app: typer.Typer) -> None:
                 )
                 typer.echo(f"  参考视频: {seg_entry.segment_url}")
             else:
-                from weibo.utils import encode_image_to_data_url
                 frame_path = job_dir / seg_entry.frame_path
                 image_data_url = encode_image_to_data_url(frame_path)
                 req = VideoGenerateRequest(
@@ -196,7 +201,104 @@ def register_run(app: typer.Typer) -> None:
             manifest.save(manifest_path)
 
         succeeded_segs = manifest.succeeded_segments()
+        failed_segs = [s for s in manifest.segments if s.status == "failed"]
         typer.echo(f"\n重制完成: {len(succeeded_segs)}/{len(manifest.segments)} 成功")
+
+        if failed_segs and auto_asset and config.tos_available:
+            typer.echo("")
+            typer.echo("=" * 50)
+            typer.echo(" 自动 Asset 注册 + 重试失败片段")
+            typer.echo("=" * 50)
+
+            try:
+                ac = AssetsClient(config.tos_access_key, config.tos_secret_key, config.tos_region)
+                group_name = f"weibo-auto-{output.name}"
+                groups = ac.list_asset_groups()
+                group_id = ""
+                for g in groups:
+                    if g.get("Name") == group_name:
+                        group_id = g["Id"]
+                        break
+                if not group_id:
+                    group_id = ac.create_asset_group(group_name)
+                    typer.echo(f"  已创建 AssetGroup: {group_id}")
+
+                registered_any = False
+                for seg_entry in failed_segs:
+                    if not seg_entry.segment_url or seg_entry.segment_url.startswith("asset://"):
+                        continue
+                    try:
+                        asset_id = ac.create_asset(group_id, seg_entry.segment_url, asset_type="Video")
+                        typer.echo(f"  [{seg_entry.index:03d}] 注册 Asset: {asset_id}")
+                        ac.wait_asset_active(asset_id, interval=5, timeout=300)
+                        seg_entry.segment_url = f"asset://{asset_id}"
+                        seg_entry.status = "pending"
+                        seg_entry.task_id = None
+                        registered_any = True
+                        typer.echo(f"  [{seg_entry.index:03d}] Asset 就绪")
+                    except Exception as exc:
+                        typer.echo(f"  [{seg_entry.index:03d}] Asset 注册失败: {exc}", err=True)
+                manifest.save(manifest_path)
+
+                if registered_any:
+                    import time as _time
+                    typer.echo("  等待 30s 让 Asset 在 Seedance 侧生效...")
+                    _time.sleep(30)
+            except Exception as exc:
+                typer.echo(f"  Asset 注册异常: {exc}", err=True)
+
+            retry_segs = [s for s in manifest.segments if s.status == "pending"]
+            for seg_entry in retry_segs:
+                idx = seg_entry.index
+                typer.echo(f"\n── 重试片段 {idx:03d} ──")
+
+                if seg_entry.segment_url:
+                    req = VideoGenerateRequest(
+                        model=config.video_model,
+                        prompt=full_prompt,
+                        ratio=target_ratio,
+                        duration=config.video_duration,
+                        video_urls=[seg_entry.segment_url],
+                    )
+                else:
+                    frame_path = job_dir / seg_entry.frame_path
+                    image_data_url = encode_image_to_data_url(frame_path)
+                    req = VideoGenerateRequest(
+                        model=config.video_model,
+                        prompt=full_prompt,
+                        ratio=target_ratio,
+                        duration=config.video_duration,
+                        images=[image_data_url],
+                    )
+
+                try:
+                    submitted = sc.submit(req)
+                    seg_entry.task_id = submitted.task_id
+                    typer.echo(f"  已提交 task_id={submitted.task_id}")
+                    manifest.save(manifest_path)
+                    result = poll_task(
+                        fetcher=sc.status,
+                        task_id=submitted.task_id,
+                        config=poll_cfg,
+                        on_update=lambda resp, n: typer.echo(f"  轮询: {resp.status} → {n}"),
+                    )
+                    normalized = normalize_status(result.status)
+                    if normalized == "succeeded" and result.file_url:
+                        remade_path = job_dir / "remade" / f"{idx:03d}.mp4"
+                        download_file(result.file_url, remade_path)
+                        seg_entry.remade_path = str(remade_path.relative_to(job_dir))
+                        seg_entry.status = "succeeded"
+                        typer.echo(f"  [OK] {seg_entry.remade_path}")
+                    else:
+                        seg_entry.status = "failed"
+                        typer.echo(f"  [FAIL] {result.fail_reason or result.status}", err=True)
+                except Exception as exc:
+                    seg_entry.status = "failed"
+                    typer.echo(f"  [FAIL] {exc}", err=True)
+                manifest.save(manifest_path)
+
+            succeeded_segs = manifest.succeeded_segments()
+            typer.echo(f"\n重试后: {len(succeeded_segs)}/{len(manifest.segments)} 成功")
 
         # --- Step 3: Merge ---
         if not succeeded_segs:

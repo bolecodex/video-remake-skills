@@ -10,6 +10,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,11 +32,67 @@ app.add_middleware(
 )
 
 
+PRESET_META: dict[str, dict[str, str]] = {
+    "h2v": {
+        "label": "横屏转竖屏",
+        "icon": "📐",
+        "desc": "16:9 → 9:16",
+        "prompt_hint": "竖屏安全区构图，主体居中偏上",
+    },
+    "v2h": {
+        "label": "竖屏转横屏",
+        "icon": "🖥",
+        "desc": "9:16 → 16:9",
+        "prompt_hint": "横屏宽画幅构图，利用横向空间展现完整场景",
+    },
+    "style_transfer": {
+        "label": "AI 风格转绘",
+        "icon": "🎨",
+        "desc": "保持内容换风格",
+        "prompt_hint": "水墨插画风格，写意笔触，留白意境，宣纸质感",
+    },
+    "character_swap": {
+        "label": "换人换脸",
+        "icon": "🎭",
+        "desc": "替换角色形象",
+        "prompt_hint": "将角色替换为银发精灵女战士，尖耳，蓝色铠甲，保持原片动作",
+    },
+    "viral_replica": {
+        "label": "爆款复刻",
+        "icon": "🔥",
+        "desc": "复刻热门视频",
+        "prompt_hint": "复刻镜头语言和节奏，竖屏构图，画面饱满",
+    },
+}
+
+PRESET_LABELS = {k: v["label"] for k, v in PRESET_META.items()}
+
+PIPELINE_STEPS = [
+    {"id": "split", "label": "分割"},
+    {"id": "asset", "label": "注册"},
+    {"id": "remake", "label": "重制"},
+    {"id": "merge", "label": "合并"},
+    {"id": "verify", "label": "报告"},
+]
+
+STEP_KEY_MAP = {
+    "分割视频 + 上传 TOS": "split",
+    "注册素材资产（防审核拦截）": "asset",
+    "注册失败片段为素材资产": "asset",
+    "Seedance 2.0 重制": "remake",
+    "重试失败片段": "remake",
+    "合并成片": "merge",
+    "生成对比报告": "verify",
+    "完成": "done",
+}
+
+
 @dataclass
 class JobState:
     job_id: str
     status: str = "pending"
     step: str = ""
+    step_key: str = ""
     progress: str = ""
     source_video: str = ""
     preset: str = "h2v"
@@ -47,24 +104,21 @@ class JobState:
     segments_total: int = 0
     segments_done: int = 0
     log_lines: list[str] = field(default_factory=list)
+    batch_id: str | None = None
+    created_at: float = 0.0
+    score: int | None = None
+    score_note: str = ""
 
 
 _jobs: dict[str, JobState] = {}
+_batches: dict[str, list[str]] = {}
 _lock = threading.Lock()
-
-PRESET_LABELS = {
-    "h2v": "横屏转竖屏",
-    "style_transfer": "AI 风格转绘",
-    "character_swap": "换人换脸",
-    "viral_replica": "爆款复刻",
-}
 
 
 def _run_job(job: JobState) -> None:
     """Run the full pipeline in a background thread."""
     job_dir = Path(job.output_dir)
     source = Path(job.source_video)
-    venv_python = BASE_DIR / ".venv" / "bin" / "python"
     weibo_bin = BASE_DIR / ".venv" / "bin" / "weibo"
 
     def log(msg: str) -> None:
@@ -73,6 +127,7 @@ def _run_job(job: JobState) -> None:
 
     def run_cmd(args: list[str], step: str) -> bool:
         job.step = step
+        job.step_key = STEP_KEY_MAP.get(step, "")
         log(f"▶ {step}")
         try:
             proc = subprocess.Popen(
@@ -102,7 +157,6 @@ def _run_job(job: JobState) -> None:
     try:
         job.status = "running"
 
-        # Step 1: Split
         if not run_cmd(
             [str(weibo_bin), "split", str(source), "-o", str(job_dir), "--preset", job.preset]
             + (["--prompt", job.prompt] if job.prompt else []),
@@ -116,7 +170,6 @@ def _run_job(job: JobState) -> None:
             m = json.loads(manifest_path.read_text())
             job.segments_total = len(m.get("segments", []))
 
-        # Step 2: Asset register (for real-person safety)
         has_segments_with_url = False
         if manifest_path.exists():
             m = json.loads(manifest_path.read_text())
@@ -130,8 +183,9 @@ def _run_job(job: JobState) -> None:
                 [str(weibo_bin), "asset-register", str(manifest_path), "-g", f"web-{job.job_id[:8]}"],
                 "注册素材资产（防审核拦截）",
             )
+            log("等待 30s 让 Asset 在 Seedance 侧生效...")
+            time.sleep(30)
 
-        # Step 3: Remake
         if not run_cmd(
             [str(weibo_bin), "remake", str(manifest_path)],
             "Seedance 2.0 重制",
@@ -139,7 +193,6 @@ def _run_job(job: JobState) -> None:
             job.status = "failed"
             return
 
-        # Check for failures and retry with asset if needed
         if manifest_path.exists():
             m = json.loads(manifest_path.read_text())
             failed_with_person = any(s.get("status") == "failed" for s in m.get("segments", []))
@@ -154,7 +207,6 @@ def _run_job(job: JobState) -> None:
                     "重试失败片段",
                 )
 
-        # Step 4: Merge
         final_path = job_dir / "final.mp4"
         if not run_cmd(
             [str(weibo_bin), "merge", str(manifest_path), "-o", str(final_path), "--keep-audio"],
@@ -166,7 +218,6 @@ def _run_job(job: JobState) -> None:
         if final_path.exists():
             job.final_video = str(final_path)
 
-        # Step 5: Verify
         report_path = job_dir / "report.html"
         run_cmd(
             [str(weibo_bin), "verify", str(manifest_path), "-o", str(report_path), "--no-open"],
@@ -175,7 +226,6 @@ def _run_job(job: JobState) -> None:
         if report_path.exists():
             job.report_html = str(report_path)
 
-        # Final status
         if manifest_path.exists():
             m = json.loads(manifest_path.read_text())
             succeeded = sum(1 for s in m.get("segments", []) if s.get("status") == "succeeded")
@@ -186,12 +236,33 @@ def _run_job(job: JobState) -> None:
 
         job.status = "succeeded" if job.final_video else "failed"
         job.step = "完成" if job.status == "succeeded" else "失败"
+        job.step_key = "done" if job.status == "succeeded" else "failed"
         log(f"✓ 任务完成: {job.progress} 段成功")
 
     except Exception as exc:
         job.status = "failed"
         job.error = str(exc)
         log(f"✗ 异常: {exc}")
+
+
+def _job_summary(j: JobState) -> dict[str, Any]:
+    return {
+        "job_id": j.job_id,
+        "status": j.status,
+        "step": j.step,
+        "step_key": j.step_key,
+        "progress": j.progress,
+        "preset": j.preset,
+        "preset_label": PRESET_LABELS.get(j.preset, j.preset),
+        "source_video": Path(j.source_video).name if j.source_video else "",
+        "has_final": j.final_video is not None,
+        "has_report": j.report_html is not None,
+        "error": j.error,
+        "batch_id": j.batch_id,
+        "created_at": j.created_at,
+        "score": j.score,
+        "score_note": j.score_note,
+    }
 
 
 # ── API routes ─────────────────────────────────────────────
@@ -201,11 +272,22 @@ async def index():
     return (BASE_DIR / "frontend.html").read_text(encoding="utf-8")
 
 
+@app.get("/api/meta/presets")
+async def get_presets():
+    return PRESET_META
+
+
+@app.get("/api/meta/steps")
+async def get_steps():
+    return PIPELINE_STEPS
+
+
 @app.post("/api/jobs")
 async def create_job(
     video: UploadFile = File(...),
     preset: str = Form("h2v"),
     prompt: str = Form(""),
+    batch_id: str = Form(""),
 ):
     job_id = uuid.uuid4().hex[:12]
     job_dir = JOBS_DIR / job_id
@@ -221,6 +303,8 @@ async def create_job(
         preset=preset,
         prompt=prompt,
         output_dir=str(job_dir),
+        batch_id=batch_id or None,
+        created_at=time.time(),
     )
     with _lock:
         _jobs[job_id] = job
@@ -231,23 +315,78 @@ async def create_job(
     return {"job_id": job_id, "status": "pending"}
 
 
+@app.post("/api/batch-jobs")
+async def create_batch(
+    video: UploadFile = File(...),
+    presets: str = Form(...),
+    prompts: str = Form("{}"),
+):
+    """Create multiple jobs from one video.
+
+    ``presets`` is a comma-separated string like ``h2v,style_transfer``.
+    ``prompts`` is a JSON object like ``{"style_transfer": "水墨风"}``.
+    """
+    batch_id = uuid.uuid4().hex[:12]
+    preset_list = [p.strip() for p in presets.split(",") if p.strip()]
+    try:
+        prompt_map: dict[str, str] = json.loads(prompts)
+    except json.JSONDecodeError:
+        prompt_map = {}
+
+    raw_bytes = await video.read()
+    job_ids: list[str] = []
+
+    for preset in preset_list:
+        job_id = uuid.uuid4().hex[:12]
+        job_dir = JOBS_DIR / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+
+        video_path = UPLOADS_DIR / f"{job_id}_{video.filename}"
+        video_path.write_bytes(raw_bytes)
+
+        job = JobState(
+            job_id=job_id,
+            source_video=str(video_path),
+            preset=preset,
+            prompt=prompt_map.get(preset, ""),
+            output_dir=str(job_dir),
+            batch_id=batch_id,
+            created_at=time.time(),
+        )
+        with _lock:
+            _jobs[job_id] = job
+        job_ids.append(job_id)
+
+        t = threading.Thread(target=_run_job, args=(job,), daemon=True)
+        t.start()
+
+    with _lock:
+        _batches[batch_id] = job_ids
+
+    return {"batch_id": batch_id, "job_ids": job_ids}
+
+
+@app.get("/api/batch-jobs/{batch_id}")
+async def get_batch(batch_id: str):
+    with _lock:
+        job_ids = _batches.get(batch_id, [])
+        jobs_data = [_job_summary(_jobs[jid]) for jid in job_ids if jid in _jobs]
+    if not jobs_data:
+        return JSONResponse({"error": "Batch not found"}, 404)
+    statuses = [j["status"] for j in jobs_data]
+    if all(s in ("succeeded", "failed") for s in statuses):
+        overall = "completed"
+    elif any(s == "running" for s in statuses):
+        overall = "running"
+    else:
+        overall = "pending"
+    return {"batch_id": batch_id, "status": overall, "jobs": jobs_data}
+
+
 @app.get("/api/jobs")
 async def list_jobs():
     with _lock:
-        result = []
-        for j in sorted(_jobs.values(), key=lambda x: x.job_id, reverse=True):
-            result.append({
-                "job_id": j.job_id,
-                "status": j.status,
-                "step": j.step,
-                "progress": j.progress,
-                "preset": j.preset,
-                "preset_label": PRESET_LABELS.get(j.preset, j.preset),
-                "source_video": Path(j.source_video).name if j.source_video else "",
-                "has_final": j.final_video is not None,
-                "has_report": j.report_html is not None,
-                "error": j.error,
-            })
+        result = [_job_summary(j) for j in sorted(_jobs.values(), key=lambda x: x.created_at, reverse=True)]
     return result
 
 
@@ -257,21 +396,11 @@ async def get_job(job_id: str):
         job = _jobs.get(job_id)
     if not job:
         return JSONResponse({"error": "Job not found"}, 404)
-    return {
-        "job_id": job.job_id,
-        "status": job.status,
-        "step": job.step,
-        "progress": job.progress,
-        "preset": job.preset,
-        "preset_label": PRESET_LABELS.get(job.preset, job.preset),
-        "source_video": Path(job.source_video).name,
-        "segments_total": job.segments_total,
-        "segments_done": job.segments_done,
-        "has_final": job.final_video is not None,
-        "has_report": job.report_html is not None,
-        "error": job.error,
-        "log": job.log_lines[-100:],
-    }
+    data = _job_summary(job)
+    data["segments_total"] = job.segments_total
+    data["segments_done"] = job.segments_done
+    data["log"] = job.log_lines[-100:]
+    return data
 
 
 @app.get("/api/jobs/{job_id}/final")
@@ -303,6 +432,33 @@ async def get_source_video(job_id: str):
     if not job or not job.source_video:
         return JSONResponse({"error": "Source not found"}, 404)
     return FileResponse(job.source_video, media_type="video/mp4")
+
+
+@app.post("/api/jobs/{job_id}/score")
+async def score_job(job_id: str, body: dict):
+    with _lock:
+        job = _jobs.get(job_id)
+    if not job:
+        return JSONResponse({"error": "Job not found"}, 404)
+    job.score = int(body.get("score", 0))
+    job.score_note = str(body.get("note", ""))
+    review_path = Path(job.output_dir) / "review.json"
+    review_path.write_text(
+        json.dumps({"score": job.score, "note": job.score_note}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return {"ok": True}
+
+
+@app.get("/api/gallery")
+async def gallery():
+    with _lock:
+        items = [
+            _job_summary(j)
+            for j in sorted(_jobs.values(), key=lambda x: x.created_at, reverse=True)
+            if j.status == "succeeded"
+        ]
+    return items
 
 
 if __name__ == "__main__":

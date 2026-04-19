@@ -43,6 +43,14 @@ class SeedanceClient:
             or "unknown"
         )
         fail_reason = data.get("reason") or data.get("error_message")
+        err_obj = data.get("error") or payload.get("error")
+        if not fail_reason and isinstance(err_obj, dict):
+            code = err_obj.get("code")
+            message = err_obj.get("message")
+            if code and message:
+                fail_reason = f"[{code}] {message}"
+            else:
+                fail_reason = message or code
 
         file_url = None
         last_frame_url = None
