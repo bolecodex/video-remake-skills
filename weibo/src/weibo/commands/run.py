@@ -22,6 +22,7 @@ from weibo.utils import (
     get_video_duration,
     get_video_ratio,
     mux_audio,
+    sketch_frame,
     split_video,
 )
 
@@ -193,11 +194,51 @@ def register_run(app: typer.Typer) -> None:
                     seg_entry.status = "succeeded"
                     typer.echo(f"  [OK] {seg_entry.remade_path}")
                 else:
+                    fail_msg = result.fail_reason or result.status
                     seg_entry.status = "failed"
-                    typer.echo(f"  [FAIL] {result.fail_reason or result.status}", err=True)
+                    typer.echo(f"  [FAIL] {fail_msg}", err=True)
             except Exception as exc:
+                fail_msg = str(exc)
                 seg_entry.status = "failed"
-                typer.echo(f"  [FAIL] {exc}", err=True)
+                typer.echo(f"  [FAIL] {fail_msg}", err=True)
+
+            if seg_entry.status == "failed" and "real person" in fail_msg.lower():
+                typer.echo(f"  真人检测拦截，改用线稿参考帧重试...")
+                frame_path = job_dir / seg_entry.frame_path
+                sketch_path = sketch_frame(frame_path)
+                sketch_data_url = encode_image_to_data_url(sketch_path)
+                sketch_req = VideoGenerateRequest(
+                    model=config.video_model,
+                    prompt=full_prompt,
+                    ratio=target_ratio,
+                    duration=config.video_duration,
+                    images=[sketch_data_url],
+                )
+                try:
+                    submitted = sc.submit(sketch_req)
+                    seg_entry.task_id = submitted.task_id
+                    typer.echo(f"  已提交 (线稿) task_id={submitted.task_id}")
+                    manifest.save(manifest_path)
+                    result = poll_task(
+                        fetcher=sc.status,
+                        task_id=submitted.task_id,
+                        config=poll_cfg,
+                        on_update=lambda resp, n: typer.echo(f"  轮询: {resp.status} → {n}"),
+                    )
+                    normalized = normalize_status(result.status)
+                    if normalized == "succeeded" and result.file_url:
+                        remade_path = job_dir / "remade" / f"{idx:03d}.mp4"
+                        download_file(result.file_url, remade_path)
+                        seg_entry.remade_path = str(remade_path.relative_to(job_dir))
+                        seg_entry.status = "succeeded"
+                        typer.echo(f"  [OK] (线稿) {seg_entry.remade_path}")
+                    else:
+                        seg_entry.status = "failed"
+                        typer.echo(f"  [FAIL] (线稿) {result.fail_reason or result.status}", err=True)
+                except Exception as exc2:
+                    seg_entry.status = "failed"
+                    typer.echo(f"  [FAIL] (线稿) {exc2}", err=True)
+
             manifest.save(manifest_path)
 
         succeeded_segs = manifest.succeeded_segments()

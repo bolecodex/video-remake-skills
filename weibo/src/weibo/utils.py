@@ -139,6 +139,24 @@ def extract_first_frame(video_path: Path, output_path: Path) -> Path:
     return output_path
 
 
+def sketch_frame(input_path: Path, output_path: Path | None = None) -> Path:
+    """Apply edge-detection to a frame, producing a sketch that strips
+    recognisable facial features while keeping scene layout and composition.
+    Useful for bypassing real-person content safety checks."""
+    if output_path is None:
+        output_path = input_path.with_stem(input_path.stem + "_sketch")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _run_ffmpeg([
+        "ffmpeg", "-y",
+        "-i", str(input_path),
+        "-vf", "edgedetect=low=0.1:high=0.4",
+        str(output_path),
+    ])
+    if not output_path.exists() or output_path.stat().st_size == 0:
+        raise FFmpegError(f"Failed to create sketch from {input_path}")
+    return output_path
+
+
 def concat_videos(video_paths: list[Path], output_path: Path) -> Path:
     """Concatenate videos using FFmpeg concat demuxer with re-encoding."""
     if not video_paths:
